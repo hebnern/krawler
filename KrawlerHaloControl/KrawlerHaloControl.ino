@@ -2,6 +2,7 @@
 
 #include <Wire.h>
 #include "SimpleTimer.h"
+#include "CRC8.h"
 
 #define BASE_ADDR (8)
 
@@ -23,34 +24,6 @@ SimpleTimer timer;
 int updateHsiTempsTimerId;
 int commsWatchdogTimerId;
 uint16_t hsi_temps[4];
-
-void setup()
-{
-  pinMode(ADDR_SEL_PIN, INPUT);
-  pinMode(AC_EN_PIN, OUTPUT);
-  pinMode(VLV_0_EN_PIN, OUTPUT);
-  pinMode(VLV_1_EN_PIN, OUTPUT);
-  pinMode(VLV_2_EN_PIN, OUTPUT);
-  pinMode(VLV_3_EN_PIN, OUTPUT);
-
-  analogReference(INTERNAL);
-
-  int addr = BASE_ADDR | digitalRead(ADDR_SEL_PIN);
-  Wire.begin(addr);
-  Wire.onReceive(receiveEvent);
-  Wire.onRequest(requestEvent);
-
-  Serial.begin(9600);
-
-  disableOutputs();
-
-  // Update HSI temps every 100ms
-  updateHsiTempsTimerId = timer.setInterval(100, updateHsiTemps);
-
-  // If we don't hear from the master for 1 second, we disable
-  // all outputs to prevent valves from remaining open indefinitely
-  commsWatchdogTimerId = timer.setTimeout(1000, commsWatchdogTimerExpired);
-}
 
 void disableOutputs()
 {
@@ -102,8 +75,35 @@ void receiveEvent(int numBytes)
   }
 }
 
+void setup()
+{
+  pinMode(ADDR_SEL_PIN, INPUT);
+  pinMode(AC_EN_PIN, OUTPUT);
+  pinMode(VLV_0_EN_PIN, OUTPUT);
+  pinMode(VLV_1_EN_PIN, OUTPUT);
+  pinMode(VLV_2_EN_PIN, OUTPUT);
+  pinMode(VLV_3_EN_PIN, OUTPUT);
+
+  analogReference(INTERNAL);
+
+  int addr = BASE_ADDR | digitalRead(ADDR_SEL_PIN);
+  Wire.begin(addr);
+  Wire.onReceive(receiveEvent);
+  Wire.onRequest(requestEvent);
+
+  Serial.begin(9600);
+
+  disableOutputs();
+
+  // Update HSI temps every 100ms
+  updateHsiTempsTimerId = timer.setInterval(100, updateHsiTemps);
+
+  // If we don't hear from the master for 1 second, we disable
+  // all outputs to prevent valves from remaining open indefinitely
+  commsWatchdogTimerId = timer.setTimeout(1000, commsWatchdogTimerExpired);
+}
+
 void loop()
 {
   timer.run();
 }
-

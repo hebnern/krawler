@@ -1,4 +1,6 @@
-byte CRC8(const byte *data, byte len)
+#include <CRC8.h>
+
+byte CRC8(byte const *data, byte len)
 {
   byte crc = 0x00;
   while (len--) {

@@ -1,2 +1,2 @@
 # krawler
-Krawler art car for Burning Man
+Krawler art car project controller
