@@ -25,15 +25,12 @@
 
 #define HSI_HOT_THRESHOLD (500)
 
-#define POOFER_COLD_COLOR         (0)
-#define POOFER_HOT_INACTIVE_COLOR (0)
-#define POOFER_HOT_ACTIVE_COLOR   (0)
+#define POOFER_COLD_COLOR         (0) // TODO blue
+#define POOFER_HOT_INACTIVE_COLOR (0) // TODO red
+#define POOFER_HOT_ACTIVE_COLOR   (0) // TODO yellow
 
-void updateNodes();
-void updateDisplay();
-
-SimpleTimer updateNodesTimer(100, updateNodes, SimpleTimer::RUN_FOREVER);
-SimpleTimer updateDisplayTimer(10, updateDisplay, SimpleTimer::RUN_FOREVER);
+SimpleTimer updateNodesTimer;
+SimpleTimer updateDisplayTimer;
 
 Button startSequenceButton(START_SEQ_BTN_PIN, BUTTON_PULLUP_INTERNAL);
 
@@ -93,8 +90,7 @@ public:
 
     Poofer(HaloNode *node, int idx) :
         node(node),
-        idx(idx),
-        timer(100, Poofer::timerExpired, SimpleTimer::RUN_ONCE, false)
+        idx(idx)
     {
     }
 
@@ -102,7 +98,12 @@ public:
     {
         uint16_t hsiTemp = node->getHsiTemp(idx);
         if (hsiTemp > HSI_HOT_THRESHOLD) {
-            return HOT_INACTIVE;
+            if (active) {
+                return HOT_ACTIVE;
+            }
+            else {
+                return HOT_INACTIVE;
+            }
         }
         else {
             return COLD;
@@ -111,19 +112,31 @@ public:
 
     void trigger()
     {
-        triggered = true;
-        timer.start();
+        timer.setTimeout(100, Poofer::timerExpired, this);
+        active = true;
     }
 
-    static void timerExpired()
+    void run()
     {
-
+        if (active) {
+            timer.run();
+        }
     }
 
 private:
+    void timerExpired()
+    {
+        active = false;
+    }
+
+    static void timerExpired(void *arg)
+    {
+        ((Poofer*)arg)->timerExpired();
+    }
+
     HaloNode *node;
     int idx;
-    bool triggered;
+    bool active;
     SimpleTimer timer;
 };
 
@@ -143,7 +156,7 @@ Poofer poofers[NUM_POOFERS] = {
     Poofer(&nodes[1], 3),
 };
 
-void updateNodes()
+void updateNodes(void *arg)
 {
     for (int i = 0; i < NUM_HALO_NODES; ++i) {
         nodes[i].queryStatus();
@@ -163,7 +176,7 @@ int pooferStatusToColor(Poofer::Status status)
     }
 }
 
-void updateDisplay()
+void updateDisplay(void *arg)
 {
     for (int i = 0; i < NUM_POOFERS; ++i) {
         Poofer& poofer = poofers[i];
@@ -191,6 +204,8 @@ void setup()
     display.show();
 
     startSequenceButton.clickHandler(startSequence);
+    updateNodesTimer.setInterval(100, updateNodes, NULL);
+    updateDisplayTimer.setInterval(10, updateDisplay, NULL);
 }
 
 void loop()
@@ -198,4 +213,7 @@ void loop()
     startSequenceButton.process();
     updateNodesTimer.run();
     updateDisplayTimer.run();
+    for (int i = 0; i < NUM_POOFERS; ++i) {
+        poofers[i].run();
+    }
 }

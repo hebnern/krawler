@@ -32,14 +32,31 @@
 static inline unsigned long elapsed() { return millis(); }
 
 
-SimpleTimer::SimpleTimer(unsigned long d, timer_callback f, int n, boolean enabled)
+SimpleTimer::SimpleTimer()
+{
+}
+
+
+void SimpleTimer::setTimer(unsigned long d, timer_callback cb, void *cb_arg, int n)
 {
     this->delay = d;
-    this->callback = f;
+    this->callback = cb;
+    this->callback_arg = cb_arg;
     this->maxNumRuns = n;
-    this->enabled = enabled;
     this->prev_millis = elapsed();
     this->numRuns = 0;
+}
+
+
+void SimpleTimer::setInterval(unsigned long interval, timer_callback cb, void *cb_arg)
+{
+    setTimer(interval, cb, cb_arg, RUN_FOREVER);
+}
+
+
+void SimpleTimer::setTimeout(unsigned long timeout, timer_callback cb, void *cb_arg)
+{
+    setTimer(timeout, cb, cb_arg, RUN_ONCE);
 }
 
 
@@ -59,10 +76,7 @@ void SimpleTimer::run()
             // update time
             prev_millis += delay;
 
-            // check if the timer callback has to be executed
-            if (enabled) {
-                (*callback)();
-            }
+            (*callback)(callback_arg);
         }
     }
 }
@@ -70,19 +84,4 @@ void SimpleTimer::run()
 
 void SimpleTimer::start() {
     prev_millis = elapsed();
-}
-
-
-boolean SimpleTimer::isEnabled() {
-    return enabled;
-}
-
-
-void SimpleTimer::enable() {
-    enabled = true;
-}
-
-
-void SimpleTimer::disable() {
-    enabled = false;
 }

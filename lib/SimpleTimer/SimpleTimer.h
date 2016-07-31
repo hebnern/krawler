@@ -34,7 +34,7 @@
 #include <WProgram.h>
 #endif
 
-typedef void (*timer_callback)(void);
+typedef void (*timer_callback)(void *arg);
 
 class SimpleTimer {
 
@@ -44,30 +44,30 @@ public:
     const static int RUN_ONCE = 1;
 
     // constructor
-    SimpleTimer(unsigned long delay, timer_callback f, int numRuns=RUN_ONCE, boolean enabled=true);
+    SimpleTimer();
 
     // this function must be called inside loop()
     void run();
 
+    void setTimer(unsigned long interval, timer_callback cb, void *cb_arg, int numRuns);
+
+    void setInterval(unsigned long interval, timer_callback cb, void *cb_arg);
+
+    void setTimeout(unsigned long interval, timer_callback cb, void *cb_arg);
+
     // (re)start the specified timer
     void start();
-
-    // returns true if the specified timer is enabled
-    boolean isEnabled();
-
-    // enables the specified timer
-    void enable();
-
-    // disables the specified timer
-    void disable();
 
 private:
     // value returned by the millis() function
     // in the previous run() call
     unsigned long prev_millis;
 
-    // pointers to the callback functions
+    // pointers to the callback function
     timer_callback callback;
+
+    // arg passed to the callback function
+    void *callback_arg;
 
     // delay values
     unsigned long delay;
@@ -77,9 +77,6 @@ private:
 
     // number of executed runs for each timer
     int numRuns;
-
-    // which timers are enabled
-    boolean enabled;
 };
 
 #endif
