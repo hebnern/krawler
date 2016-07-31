@@ -6,6 +6,9 @@
 #include <Button.h>
 #include <Adafruit_NeoPixel.h>
 
+#include "HaloNode.h"
+#include "Poofer.h"
+
 #define NEO_PX_PIN        (2)
 #define START_SEQ_BTN_PIN (3)
 #define SPD_POT_PIN       (A0)
@@ -14,16 +17,11 @@
 #define HALO_NODE_LEFT_ADDR  (8)
 #define HALO_NODE_RIGHT_ADDR (9)
 
-#define STATUS_PKT_SIZE (9)
-
 #define NUM_HALO_NODES       (2)
-#define NUM_POOFERS_PER_NODE (4)
 #define NUM_POOFERS          (NUM_HALO_NODES * NUM_POOFERS_PER_NODE)
 
 #define NUM_DISPLAY_PIXELS    (24)
 #define NUM_PIXELS_PER_POOFER (NUM_DISPLAY_PIXELS / NUM_POOFERS)
-
-#define HSI_HOT_THRESHOLD (500)
 
 #define POOFER_COLD_COLOR         (0) // TODO blue
 #define POOFER_HOT_INACTIVE_COLOR (0) // TODO red
@@ -31,114 +29,8 @@
 
 SimpleTimer updateNodesTimer;
 SimpleTimer updateDisplayTimer;
-
 Button startSequenceButton(START_SEQ_BTN_PIN, BUTTON_PULLUP_INTERNAL);
-
 Adafruit_NeoPixel display = Adafruit_NeoPixel(NUM_DISPLAY_PIXELS, NEO_PX_PIN, NEO_GRB + NEO_KHZ800);
-
-class HaloNode
-{
-public:
-    HaloNode(int addr) :
-        addr(addr)
-    {
-    }
-
-    void queryStatus()
-    {
-        int numBytes = Wire.requestFrom(addr, STATUS_PKT_SIZE);
-        if (numBytes != STATUS_PKT_SIZE) {
-            return;
-        }
-
-        byte statusPacket[STATUS_PKT_SIZE];
-        for (int i = 0; i < STATUS_PKT_SIZE; ++i) {
-            statusPacket[i] = Wire.read();
-        }
-
-        byte calculatedCRC = CRC8(statusPacket, STATUS_PKT_SIZE-1);
-        if (statusPacket[STATUS_PKT_SIZE-1] == calculatedCRC) {
-            for (int i = 0; i < NUM_POOFERS_PER_NODE; ++i) {
-                nodeStatus[i] = statusPacket[i];
-            }
-        }
-    }
-
-    void sendCommands()
-    {
-
-    }
-
-    uint16_t getHsiTemp(int idx)
-    {
-        return nodeStatus[idx];
-    }
-
-private:
-    int addr;
-    uint16_t nodeStatus[NUM_POOFERS_PER_NODE];
-};
-
-class Poofer
-{
-public:
-    enum Status {
-        COLD,
-        HOT_INACTIVE,
-        HOT_ACTIVE
-    };
-
-    Poofer(HaloNode *node, int idx) :
-        node(node),
-        idx(idx)
-    {
-    }
-
-    Status getStatus()
-    {
-        uint16_t hsiTemp = node->getHsiTemp(idx);
-        if (hsiTemp > HSI_HOT_THRESHOLD) {
-            if (active) {
-                return HOT_ACTIVE;
-            }
-            else {
-                return HOT_INACTIVE;
-            }
-        }
-        else {
-            return COLD;
-        }
-    }
-
-    void trigger()
-    {
-        timer.setTimeout(100, Poofer::timerExpired, this);
-        active = true;
-    }
-
-    void run()
-    {
-        if (active) {
-            timer.run();
-        }
-    }
-
-private:
-    void timerExpired()
-    {
-        active = false;
-    }
-
-    static void timerExpired(void *arg)
-    {
-        ((Poofer*)arg)->timerExpired();
-    }
-
-    HaloNode *node;
-    int idx;
-    bool active;
-    SimpleTimer timer;
-};
 
 HaloNode nodes[NUM_HALO_NODES] = {
     HaloNode(HALO_NODE_LEFT_ADDR),
