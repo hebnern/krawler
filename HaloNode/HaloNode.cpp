@@ -20,9 +20,16 @@
 
 #define CMD_PKT_SIZE (6)
 
-SimpleTimer timer;
-int updateHsiTempsTimerId;
-int commsWatchdogTimerId;
+void commsWatchdogTimerExpired();
+void updateHsiTemps();
+
+// Update HSI temps every 50ms
+SimpleTimer updateHsiTempsTimer(50, updateHsiTemps, SimpleTimer::RUN_FOREVER);
+
+// If we don't hear from the master for 1 second, we disable
+// all outputs to prevent valves from remaining open indefinitely
+SimpleTimer commsWatchdogTimer(1000, commsWatchdogTimerExpired, SimpleTimer::RUN_ONCE);
+
 uint16_t hsi_temps[4];
 
 void disableOutputs()
@@ -72,7 +79,7 @@ void receiveEvent(int numBytes)
         digitalWrite(VLV_2_EN_PIN, commandPacket[3]);
         digitalWrite(VLV_3_EN_PIN, commandPacket[4]);
 
-        timer.restartTimer(commsWatchdogTimerId);
+        commsWatchdogTimer.start();
     }
 }
 
@@ -95,16 +102,10 @@ void setup()
     Serial.begin(9600);
 
     disableOutputs();
-
-    // Update HSI temps every 50ms
-    updateHsiTempsTimerId = timer.setInterval(50, updateHsiTemps);
-
-    // If we don't hear from the master for 1 second, we disable
-    // all outputs to prevent valves from remaining open indefinitely
-    commsWatchdogTimerId = timer.setTimeout(1000, commsWatchdogTimerExpired);
 }
 
 void loop()
 {
-    timer.run();
+    commsWatchdogTimer.run();
+    updateHsiTempsTimer.run();
 }

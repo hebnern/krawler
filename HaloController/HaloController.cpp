@@ -29,9 +29,11 @@
 #define POOFER_HOT_INACTIVE_COLOR (0)
 #define POOFER_HOT_ACTIVE_COLOR   (0)
 
-SimpleTimer timer;
-int updateNodesTimerId;
-int updateDisplayTimerId;
+void updateNodes();
+void updateDisplay();
+
+SimpleTimer updateNodesTimer(100, updateNodes, SimpleTimer::RUN_FOREVER);
+SimpleTimer updateDisplayTimer(10, updateDisplay, SimpleTimer::RUN_FOREVER);
 
 Button startSequenceButton(START_SEQ_BTN_PIN, BUTTON_PULLUP_INTERNAL);
 
@@ -91,9 +93,9 @@ public:
 
     Poofer(HaloNode *node, int idx) :
         node(node),
-        idx(idx)
+        idx(idx),
+        timer(100, Poofer::timerExpired, SimpleTimer::RUN_ONCE, false)
     {
-        triggerTimerId = timer.setTimeout(100, NULL);
     }
 
     Status getStatus()
@@ -110,14 +112,19 @@ public:
     void trigger()
     {
         triggered = true;
-        timer.restartTimer(triggerTimerId);
+        timer.start();
+    }
+
+    static void timerExpired()
+    {
+
     }
 
 private:
     HaloNode *node;
     int idx;
     bool triggered;
-    int triggerTimerId;
+    SimpleTimer timer;
 };
 
 HaloNode nodes[NUM_HALO_NODES] = {
@@ -184,12 +191,11 @@ void setup()
     display.show();
 
     startSequenceButton.clickHandler(startSequence);
-    updateNodesTimerId = timer.setInterval(100, updateNodes);
-    updateDisplayTimerId = timer.setInterval(10, updateDisplay);
 }
 
 void loop()
 {
     startSequenceButton.process();
-    timer.run();
+    updateNodesTimer.run();
+    updateDisplayTimer.run();
 }
