@@ -131,7 +131,7 @@ int SimpleTimer::findFirstFreeSlot() {
 }
 
 
-int SimpleTimer::setTimer(long d, timer_callback f, int n) {
+int SimpleTimer::setTimer(long d, timer_callback f, int n, boolean enabled) {
     int freeTimer;
 
     freeTimer = findFirstFreeSlot();
@@ -146,7 +146,7 @@ int SimpleTimer::setTimer(long d, timer_callback f, int n) {
     delays[freeTimer] = d;
     callbacks[freeTimer] = f;
     maxNumRuns[freeTimer] = n;
-    enabled[freeTimer] = true;
+    this->enabled[freeTimer] = enabled;
     prev_millis[freeTimer] = elapsed();
 
     numTimers++;
@@ -155,13 +155,13 @@ int SimpleTimer::setTimer(long d, timer_callback f, int n) {
 }
 
 
-int SimpleTimer::setInterval(long d, timer_callback f) {
-    return setTimer(d, f, RUN_FOREVER);
+int SimpleTimer::setInterval(long d, timer_callback f, boolean enabled) {
+    return setTimer(d, f, RUN_FOREVER, enabled);
 }
 
 
-int SimpleTimer::setTimeout(long d, timer_callback f) {
-    return setTimer(d, f, RUN_ONCE);
+int SimpleTimer::setTimeout(long d, timer_callback f, boolean enabled) {
+    return setTimer(d, f, RUN_ONCE, enabled);
 }
 
 
