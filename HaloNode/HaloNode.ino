@@ -1,4 +1,4 @@
-// Krawler Halo Controller
+// Krawler Halo Node
 
 #include <Wire.h>
 #include "SimpleTimer.h"
