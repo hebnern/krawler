@@ -1,8 +1,8 @@
 // Krawler Halo Node
 
 #include <Wire.h>
-#include "SimpleTimer.h"
-#include "CRC8.h"
+#include <SimpleTimer.h>
+#include <CRC8.h>
 
 #define BASE_ADDR (8)
 
