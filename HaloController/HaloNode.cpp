@@ -5,6 +5,7 @@
 #include <CRC8.h>
 
 #define STATUS_PKT_SIZE (9)
+#define COMMAND_PKT_SIZE (6)
 
 HaloNode::HaloNode(int addr) :
     addr(addr)
@@ -33,7 +34,16 @@ void HaloNode::queryStatus()
 
 void HaloNode::sendCommands()
 {
+    byte commandPacket[COMMAND_PKT_SIZE];
+    commandPacket[0] = acEnableCommand;
+    for (int i = 0; i < NUM_POOFERS_PER_NODE; ++i) {
+        commandPacket[i + 1] = valveEnableCommands[i];
+    }
+    commandPacket[COMMAND_PKT_SIZE-1] = CRC8(commandPacket, COMMAND_PKT_SIZE-1);
 
+    Wire.beginTransmission(addr);
+    Wire.write(commandPacket, COMMAND_PKT_SIZE);
+    Wire.endTransmission();
 }
 
 uint16_t HaloNode::getHsiTemp(int idx)
