@@ -8,24 +8,29 @@
 class Poofer
 {
 public:
-    enum Status {
+    enum State {
         COLD,
         HOT_INACTIVE,
         HOT_ACTIVE
     };
 
-    Poofer(HaloNode *node, int idx);
+    typedef void (*StateChangeCallback)(int pooferIdx, State state);
 
-    Status getStatus();
-    void trigger(bool previewOnly);
+    Poofer(int pooferIdx, HaloNode *node, int nodeIdx);
+
+    void onStateChange(StateChangeCallback cb);
+    void trigger(bool preview);
     void run();
 
 private:
+    void setState(State state);
     void timerExpired();
     static void timerExpired(void *arg);
 
+    int pooferIdx;
     HaloNode *node;
-    int idx;
-    bool active;
+    int nodeIdx;
+    State curState;
     SimpleTimer timer;
+    StateChangeCallback stateChangeCb;
 };

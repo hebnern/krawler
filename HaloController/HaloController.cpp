@@ -8,6 +8,7 @@
 
 #include "HaloNode.h"
 #include "Poofer.h"
+#include "PooferSequencer.h"
 
 #define NEO_PX_PIN        (2)
 #define START_SEQ_BTN_PIN (3)
@@ -17,22 +18,23 @@
 #define HALO_NODE_LEFT_ADDR  (8)
 #define HALO_NODE_RIGHT_ADDR (9)
 
+#define NUM_POOFER_SEQUENCES (2)
+
 #define NUM_HALO_NODES       (2)
 #define NUM_POOFERS          (NUM_HALO_NODES * NUM_POOFERS_PER_NODE)
 
 #define NUM_DISPLAY_PIXELS    (24)
 #define NUM_PIXELS_PER_POOFER (NUM_DISPLAY_PIXELS / NUM_POOFERS)
 
-#define COLD_COLOR         (0) // TODO blue
-#define HOT_INACTIVE_COLOR (0) // TODO red
-#define HOT_ACTIVE_COLOR   (0) // TODO yellow
-
-#define SEQUENCE_INTERVAL (200)
+#define COLD_COLOR         (0x0000FF) // blue
+#define HOT_INACTIVE_COLOR (0xFF0000) // red
+#define HOT_ACTIVE_COLOR   (0xFFFF00) // yellow
 
 SimpleTimer updateNodesTimer;
-SimpleTimer updateDisplayTimer;
+SimpleTimer restartSequencePreviewTimer;
 Button startSequenceButton(START_SEQ_BTN_PIN, BUTTON_PULLUP_INTERNAL);
 Adafruit_NeoPixel display = Adafruit_NeoPixel(NUM_DISPLAY_PIXELS, NEO_PX_PIN, NEO_GRB + NEO_KHZ800);
+bool displayUpdated;
 
 HaloNode nodes[NUM_HALO_NODES] = {
     HaloNode(HALO_NODE_LEFT_ADDR),
@@ -40,103 +42,34 @@ HaloNode nodes[NUM_HALO_NODES] = {
 };
 
 Poofer poofers[NUM_POOFERS] = {
-    Poofer(&nodes[0], 0),
-    Poofer(&nodes[0], 1),
-    Poofer(&nodes[0], 2),
-    Poofer(&nodes[0], 3),
-    Poofer(&nodes[1], 0),
-    Poofer(&nodes[1], 1),
-    Poofer(&nodes[1], 2),
-    Poofer(&nodes[1], 3),
+    Poofer(0, &nodes[0], 0),
+    Poofer(1, &nodes[0], 1),
+    Poofer(2, &nodes[0], 2),
+    Poofer(3, &nodes[0], 3),
+    Poofer(4, &nodes[1], 0),
+    Poofer(5, &nodes[1], 1),
+    Poofer(6, &nodes[1], 2),
+    Poofer(7, &nodes[1], 3),
 };
 
-class PooferSequence
-{
-public:
-    PooferSequence(
-        char const *step0=NULL,
-        char const *step1=NULL,
-        char const *step2=NULL,
-        char const *step3=NULL,
-        char const *step4=NULL,
-        char const *step5=NULL,
-        char const *step6=NULL,
-        char const *step7=NULL)
-    {
-        steps[0] = step0;
-        steps[1] = step1;
-        steps[2] = step2;
-        steps[3] = step3;
-        steps[4] = step4;
-        steps[5] = step5;
-        steps[6] = step6;
-        steps[7] = step7;
-    }
+PooferSequencer sequencer(poofers, NUM_POOFERS);
 
-    void start()
-    {
-        previewOnly = false;
-        setStep(0);
-    }
+char const *sequences[NUM_POOFER_SEQUENCES] = {
+    // Sequence 1
+    "X-------"
+    "-X------"
+    "--X-----"
+    "---X----"
+    "----X---"
+    "-----X--"
+    "------X-"
+    "-------X",
 
-    void startPreview()
-    {
-        previewOnly = true;
-        setStep(0);
-    }
-
-    void run()
-    {
-        timer.run();
-    }
-
-private:
-    void setStep(int step)
-    {
-        curStep = step;
-        timer.setTimeout(SEQUENCE_INTERVAL, PooferSequence::timerExpired, this);
-        for (int i = 0; i < NUM_POOFERS; ++i) {
-            if (steps[curStep][i] == 'X') {
-                poofers[i].trigger(previewOnly);
-            }
-        }
-    }
-
-    void timerExpired()
-    {
-        setStep(curStep + 1);
-    }
-
-    static void timerExpired(void *arg)
-    {
-        ((PooferSequence*)arg)->timerExpired();
-    }
-
-    bool previewOnly;
-    int curStep;
-    char const *steps[NUM_POOFERS];
-    SimpleTimer timer;
-};
-
-PooferSequence sequences[] = {
-    PooferSequence(
-        "X-------",
-        "-X------",
-        "--X-----",
-        "---X----",
-        "----X---",
-        "-----X--",
-        "------X-",
-        "-------X"),
-    PooferSequence(
-        "X-------",
-        "-X------",
-        "--X-----",
-        "---X----",
-        "----X---",
-        "-----X--",
-        "------X-",
-        "-------X"),
+    // Sequence 2
+    "X---X---"
+    "-X---X--"
+    "--X---X-"
+    "---X---X",
 };
 
 void updateNodes(void *arg)
@@ -147,9 +80,9 @@ void updateNodes(void *arg)
     }
 }
 
-int pooferStatusToColor(Poofer::Status status)
+int pooferStateToColor(Poofer::State state)
 {
-    switch (status) {
+    switch (state) {
         case Poofer::COLD:
             return COLD_COLOR;
         case Poofer::HOT_INACTIVE:
@@ -159,23 +92,30 @@ int pooferStatusToColor(Poofer::Status status)
     }
 }
 
-void updateDisplay(void *arg)
+void handlePooferStateChange(int pooferIdx, Poofer::State state)
 {
-    for (int i = 0; i < NUM_POOFERS; ++i) {
-        Poofer& poofer = poofers[i];
-        int pixelColor = pooferStatusToColor(poofer.getStatus());
+    int pixelColor = pooferStateToColor(state);
 
-        for (int j = 0; j < NUM_PIXELS_PER_POOFER; ++i) {
-            int pixelIdx = (i * NUM_PIXELS_PER_POOFER) + j;
-            display.setPixelColor(pixelIdx, pixelColor);
-        }
+    for (int i = 0; i < NUM_PIXELS_PER_POOFER; ++i) {
+        int pixelIdx = (pooferIdx * NUM_PIXELS_PER_POOFER) + i;
+        display.setPixelColor(pixelIdx, pixelColor);
     }
-    display.show();
+    displayUpdated = false;
 }
 
-void startSequence(Button& button)
+void handleStartSequenceButtonPressed(Button& button)
 {
-    sequences[0].start();
+    sequencer.startSequence(sequences[0]);
+}
+
+void restartSequencePreview(void *arg)
+{
+    sequencer.startSequencePreview(sequences[0]);
+}
+
+void handleSequenceComplete()
+{
+    restartSequencePreviewTimer.setTimeout(750, restartSequencePreview, NULL);
 }
 
 void setup()
@@ -186,19 +126,31 @@ void setup()
     display.begin();
     display.show();
 
-    startSequenceButton.clickHandler(startSequence);
+    startSequenceButton.clickHandler(handleStartSequenceButtonPressed);
     updateNodesTimer.setInterval(100, updateNodes, NULL);
-    updateDisplayTimer.setInterval(10, updateDisplay, NULL);
 
-    sequences[0].startPreview();
+    for (int i = 0; i < NUM_POOFERS; ++i) {
+        poofers[i].onStateChange(handlePooferStateChange);
+    }
+
+    sequencer.onSequenceComplete(handleSequenceComplete);
+    sequencer.startSequencePreview(sequences[0]);
 }
 
 void loop()
 {
     startSequenceButton.process();
     updateNodesTimer.run();
-    updateDisplayTimer.run();
-    for (int i = 0; i < NUM_POOFERS; ++i) {
-        poofers[i].run();
+
+    if (sequencer.isActive()) {
+        sequencer.run();
+    }
+    else {
+        restartSequencePreviewTimer.run();
+    }
+
+    if (displayUpdated) {
+        display.show();
+        displayUpdated = false;
     }
 }

@@ -3,46 +3,53 @@
 
 #define HSI_HOT_THRESHOLD (500)
 
-Poofer::Poofer(HaloNode *node, int idx) :
+Poofer::Poofer(int pooferIdx, HaloNode *node, int nodeIdx) :
+    pooferIdx(pooferIdx),
     node(node),
-    idx(idx)
+    nodeIdx(nodeIdx)
 {
 }
 
-Poofer::Status Poofer::getStatus()
+void Poofer::onStateChange(Poofer::StateChangeCallback stateChangeCb)
 {
-    uint16_t hsiTemp = node->getHsiTemp(idx);
-    if (hsiTemp > HSI_HOT_THRESHOLD) {
-        if (active) {
-            return HOT_ACTIVE;
+    this->stateChangeCb = stateChangeCb;
+}
+
+void Poofer::setState(Poofer::State state)
+{
+    if (curState != state) {
+        curState = state;
+        if (stateChangeCb) {
+            stateChangeCb(pooferIdx, state);
         }
-        else {
-            return HOT_INACTIVE;
-        }
-    }
-    else {
-        return COLD;
     }
 }
 
-void Poofer::trigger(bool previewOnly)
+void Poofer::trigger(bool preview)
 {
-    node->setValveCommand(idx, !previewOnly);
-    timer.setTimeout(100, Poofer::timerExpired, this);
-    active = true;
+    if (curState == HOT_INACTIVE) {
+        node->setValveCommand(nodeIdx, !preview);
+        timer.setTimeout(100, Poofer::timerExpired, this);
+        setState(HOT_ACTIVE);
+    }
 }
 
 void Poofer::run()
 {
-    if (active) {
+    uint16_t hsiTemp = node->getHsiTemp(nodeIdx);
+    if (hsiTemp < HSI_HOT_THRESHOLD) {
+        node->setValveCommand(nodeIdx, false);
+        setState(COLD);
+    }
+    else if (curState == HOT_ACTIVE) {
         timer.run();
     }
 }
 
 void Poofer::timerExpired()
 {
-    node->setValveCommand(idx, false);
-    active = false;
+    node->setValveCommand(nodeIdx, false);
+    setState(HOT_INACTIVE);
 }
 
 void Poofer::timerExpired(void *arg)
