@@ -23,9 +23,11 @@
 #define NUM_DISPLAY_PIXELS    (24)
 #define NUM_PIXELS_PER_POOFER (NUM_DISPLAY_PIXELS / NUM_POOFERS)
 
-#define POOFER_COLD_COLOR         (0) // TODO blue
-#define POOFER_HOT_INACTIVE_COLOR (0) // TODO red
-#define POOFER_HOT_ACTIVE_COLOR   (0) // TODO yellow
+#define COLD_COLOR         (0) // TODO blue
+#define HOT_INACTIVE_COLOR (0) // TODO red
+#define HOT_ACTIVE_COLOR   (0) // TODO yellow
+
+#define SEQUENCE_INTERVAL (200)
 
 SimpleTimer updateNodesTimer;
 SimpleTimer updateDisplayTimer;
@@ -48,6 +50,95 @@ Poofer poofers[NUM_POOFERS] = {
     Poofer(&nodes[1], 3),
 };
 
+class PooferSequence
+{
+public:
+    PooferSequence(
+        char const *step0=NULL,
+        char const *step1=NULL,
+        char const *step2=NULL,
+        char const *step3=NULL,
+        char const *step4=NULL,
+        char const *step5=NULL,
+        char const *step6=NULL,
+        char const *step7=NULL)
+    {
+        steps[0] = step0;
+        steps[1] = step1;
+        steps[2] = step2;
+        steps[3] = step3;
+        steps[4] = step4;
+        steps[5] = step5;
+        steps[6] = step6;
+        steps[7] = step7;
+    }
+
+    void start()
+    {
+        previewOnly = false;
+        setStep(0);
+    }
+
+    void startPreview()
+    {
+        previewOnly = true;
+        setStep(0);
+    }
+
+    void run()
+    {
+        timer.run();
+    }
+
+private:
+    void setStep(int step)
+    {
+        curStep = step;
+        timer.setTimeout(SEQUENCE_INTERVAL, PooferSequence::timerExpired, this);
+        for (int i = 0; i < NUM_POOFERS; ++i) {
+            if (steps[curStep][i] == 'X') {
+                poofers[i].trigger(previewOnly);
+            }
+        }
+    }
+
+    void timerExpired()
+    {
+        setStep(curStep + 1);
+    }
+
+    static void timerExpired(void *arg)
+    {
+        ((PooferSequence*)arg)->timerExpired();
+    }
+
+    bool previewOnly;
+    int curStep;
+    char const *steps[NUM_POOFERS];
+    SimpleTimer timer;
+};
+
+PooferSequence sequences[] = {
+    PooferSequence(
+        "X-------",
+        "-X------",
+        "--X-----",
+        "---X----",
+        "----X---",
+        "-----X--",
+        "------X-",
+        "-------X"),
+    PooferSequence(
+        "X-------",
+        "-X------",
+        "--X-----",
+        "---X----",
+        "----X---",
+        "-----X--",
+        "------X-",
+        "-------X"),
+};
+
 void updateNodes(void *arg)
 {
     for (int i = 0; i < NUM_HALO_NODES; ++i) {
@@ -60,11 +151,11 @@ int pooferStatusToColor(Poofer::Status status)
 {
     switch (status) {
         case Poofer::COLD:
-            return POOFER_COLD_COLOR;
+            return COLD_COLOR;
         case Poofer::HOT_INACTIVE:
-            return POOFER_HOT_INACTIVE_COLOR;
+            return HOT_INACTIVE_COLOR;
         case Poofer::HOT_ACTIVE:
-            return POOFER_HOT_ACTIVE_COLOR;
+            return HOT_ACTIVE_COLOR;
     }
 }
 
@@ -84,7 +175,7 @@ void updateDisplay(void *arg)
 
 void startSequence(Button& button)
 {
-
+    sequences[0].start();
 }
 
 void setup()
@@ -98,6 +189,8 @@ void setup()
     startSequenceButton.clickHandler(startSequence);
     updateNodesTimer.setInterval(100, updateNodes, NULL);
     updateDisplayTimer.setInterval(10, updateDisplay, NULL);
+
+    sequences[0].startPreview();
 }
 
 void loop()
