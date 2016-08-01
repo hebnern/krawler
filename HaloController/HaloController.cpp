@@ -13,7 +13,7 @@
 #define NEO_PX_PIN        (2)
 #define START_SEQ_BTN_PIN (3)
 #define SPD_POT_PIN       (A0)
-#define SEL_POT_PIN       (A1)
+#define SEQ_SEL_POT_PIN   (A1)
 
 #define HALO_NODE_LEFT_ADDR  (8)
 #define HALO_NODE_RIGHT_ADDR (9)
@@ -30,11 +30,13 @@
 #define HOT_INACTIVE_COLOR (0xFF0000) // red
 #define HOT_ACTIVE_COLOR   (0xFFFF00) // yellow
 
+SimpleTimer readPotsTimer;
 SimpleTimer updateNodesTimer;
 SimpleTimer restartSequencePreviewTimer;
 Button startSequenceButton(START_SEQ_BTN_PIN, BUTTON_PULLUP_INTERNAL);
 Adafruit_NeoPixel display = Adafruit_NeoPixel(NUM_DISPLAY_PIXELS, NEO_PX_PIN, NEO_GRB + NEO_KHZ800);
 bool displayUpdated;
+int curSeqSelect = -1;
 
 HaloNode nodes[NUM_HALO_NODES] = {
     HaloNode(HALO_NODE_LEFT_ADDR),
@@ -72,6 +74,21 @@ char const *sequences[NUM_POOFER_SEQUENCES] = {
     "---X---X",
 };
 
+void readPots(void *arg)
+{
+    if (sequencer.isActive() && !sequencer.isPreview()) {
+        return;
+    }
+
+    float seqIntervalScalar = analogRead(SPD_POT_PIN) / 1024.0f;
+    sequencer.setIntervalScalar(seqIntervalScalar);
+
+    int newSeqSelect = analogRead(SEQ_SEL_POT_PIN) / (1024 / NUM_POOFER_SEQUENCES);
+    if (curSeqSelect != newSeqSelect) {
+        sequencer.startSequencePreview(sequences[curSeqSelect]);
+    }
+}
+
 void updateNodes(void *arg)
 {
     for (int i = 0; i < NUM_HALO_NODES; ++i) {
@@ -80,21 +97,22 @@ void updateNodes(void *arg)
     }
 }
 
-int pooferStateToColor(Poofer::State state)
+uint32_t pooferStateToColor(Poofer::State state)
 {
     switch (state) {
-        case Poofer::COLD:
-            return COLD_COLOR;
         case Poofer::HOT_INACTIVE:
             return HOT_INACTIVE_COLOR;
         case Poofer::HOT_ACTIVE:
             return HOT_ACTIVE_COLOR;
+        case Poofer::COLD:
+        default:
+            return COLD_COLOR;
     }
 }
 
 void handlePooferStateChange(int pooferIdx, Poofer::State state)
 {
-    int pixelColor = pooferStateToColor(state);
+    uint32_t pixelColor = pooferStateToColor(state);
 
     for (int i = 0; i < NUM_PIXELS_PER_POOFER; ++i) {
         int pixelIdx = (pooferIdx * NUM_PIXELS_PER_POOFER) + i;
@@ -105,7 +123,7 @@ void handlePooferStateChange(int pooferIdx, Poofer::State state)
 
 void handleStartSequenceButtonPressed(Button& button)
 {
-    sequencer.startSequence(sequences[0]);
+    sequencer.startSequence(sequences[curSeqSelect]);
 }
 
 void restartSequencePreview(void *arg)
@@ -128,18 +146,19 @@ void setup()
 
     startSequenceButton.clickHandler(handleStartSequenceButtonPressed);
     updateNodesTimer.setInterval(100, updateNodes, NULL);
+    readPotsTimer.setInterval(100, readPots, NULL);
 
     for (int i = 0; i < NUM_POOFERS; ++i) {
         poofers[i].onStateChange(handlePooferStateChange);
     }
 
     sequencer.onSequenceComplete(handleSequenceComplete);
-    sequencer.startSequencePreview(sequences[0]);
 }
 
 void loop()
 {
     startSequenceButton.process();
+    readPotsTimer.run();
     updateNodesTimer.run();
 
     if (sequencer.isActive()) {

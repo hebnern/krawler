@@ -12,9 +12,11 @@ public:
     PooferSequencer(Poofer *poofers, int numPoofers);
 
     void onSequenceComplete(SequenceCompleteCallback sequenceCompleteCallback);
+    void setIntervalScalar(float seqIntervalScalar);
     void startSequencePreview(const char* sequence);
     void startSequence(const char* sequence);
     bool isActive();
+    bool isPreview();
     void run();
 
 private:
@@ -33,4 +35,5 @@ private:
     SimpleTimer timer;
     const char* sequence;
     bool active;
+    int interval;
 };

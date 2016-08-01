@@ -1,12 +1,18 @@
 
 #include "PooferSequencer.h"
 
-#define SEQUENCE_INTERVAL (200)
+#define SEQUENCE_INTERVAL_MIN (200)
+#define SEQUENCE_INTERVAL_MAX (1000)
 
 PooferSequencer::PooferSequencer(Poofer *poofers, int numPoofers) :
     poofers(poofers),
     numPoofers(numPoofers)
 {
+}
+
+void PooferSequencer::setIntervalScalar(float intervalScalar)
+{
+    interval = int(SEQUENCE_INTERVAL_MIN + (intervalScalar * (SEQUENCE_INTERVAL_MAX - SEQUENCE_INTERVAL_MIN)));
 }
 
 void PooferSequencer::onSequenceComplete(SequenceCompleteCallback sequenceCompleteCallback)
@@ -44,13 +50,18 @@ void PooferSequencer::run()
 void PooferSequencer::setStep(int step)
 {
     curStep = step;
-    timer.setTimeout(SEQUENCE_INTERVAL, PooferSequencer::timerExpired, this);
+    timer.setTimeout(interval, PooferSequencer::timerExpired, this);
     char const *curStepStr = &sequence[curStep * numPoofers];
     for (int i = 0; i < numPoofers; ++i) {
         if (curStepStr[i] == 'X') {
             poofers[i].trigger(preview);
         }
     }
+}
+
+bool PooferSequencer::isPreview()
+{
+    return preview;
 }
 
 bool PooferSequencer::isActive()
