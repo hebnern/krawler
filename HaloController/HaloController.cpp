@@ -12,7 +12,7 @@
 
 #define NEO_PX_PIN        (2)
 #define START_SEQ_BTN_PIN (3)
-#define AC_ENABLE_SW_PIN  (4)
+#define AC_ENABLE_BTN_PIN (4)
 #define SPD_POT_PIN       (A0)
 #define SEQ_SEL_POT_PIN   (A1)
 
@@ -35,9 +35,11 @@ SimpleTimer readPotsTimer;
 SimpleTimer updateNodesTimer;
 SimpleTimer restartSequencePreviewTimer;
 Button startSequenceButton(START_SEQ_BTN_PIN, BUTTON_PULLUP_INTERNAL);
+Button acEnableButton(AC_ENABLE_BTN_PIN, BUTTON_PULLUP_INTERNAL);
 Adafruit_NeoPixel display = Adafruit_NeoPixel(NUM_DISPLAY_PIXELS, NEO_PX_PIN, NEO_GRB + NEO_KHZ800);
 bool displayUpdated;
 int curSeqSelect = -1;
+bool acEnabled = false;
 
 HaloNode nodes[NUM_HALO_NODES] = {
     HaloNode(HALO_NODE_LEFT_ADDR),
@@ -92,7 +94,6 @@ void readPots(void *arg)
 
 void updateNodes(void *arg)
 {
-    int acEnabled = digitalRead(AC_ENABLE_SW_PIN);
     for (int i = 0; i < NUM_HALO_NODES; ++i) {
         nodes[i].enableAc(acEnabled);
         nodes[i].queryStatus();
@@ -124,6 +125,11 @@ void handlePooferStateChange(int pooferIdx, Poofer::State state)
     displayUpdated = false;
 }
 
+void handleAcEnableButtonPressed(Button& button)
+{
+    acEnabled = !acEnabled;
+}
+
 void handleStartSequenceButtonPressed(Button& button)
 {
     sequencer.startSequence(sequences[curSeqSelect]);
@@ -148,6 +154,7 @@ void setup()
     display.show();
 
     startSequenceButton.clickHandler(handleStartSequenceButtonPressed);
+    acEnableButton.clickHandler(handleAcEnableButtonPressed);
     updateNodesTimer.setInterval(100, updateNodes, NULL);
     readPotsTimer.setInterval(100, readPots, NULL);
 
@@ -161,6 +168,7 @@ void setup()
 void loop()
 {
     startSequenceButton.process();
+    acEnableButton.process();
     readPotsTimer.run();
     updateNodesTimer.run();
 
