@@ -28,7 +28,7 @@ void Poofer::setState(Poofer::State state)
 void Poofer::trigger(bool preview)
 {
     if (curState == HOT_INACTIVE) {
-        node->setValveCommand(nodeIdx, !preview);
+        node->enableValve(nodeIdx, !preview);
         timer.setTimeout(100, Poofer::timerExpired, this);
         setState(HOT_ACTIVE);
     }
@@ -38,7 +38,7 @@ void Poofer::run()
 {
     uint16_t hsiTemp = node->getHsiTemp(nodeIdx);
     if (hsiTemp < HSI_HOT_THRESHOLD) {
-        node->setValveCommand(nodeIdx, false);
+        node->enableValve(nodeIdx, false);
         setState(COLD);
     }
     else if (curState == HOT_ACTIVE) {
@@ -48,7 +48,7 @@ void Poofer::run()
 
 void Poofer::timerExpired()
 {
-    node->setValveCommand(nodeIdx, false);
+    node->enableValve(nodeIdx, false);
     setState(HOT_INACTIVE);
 }
 

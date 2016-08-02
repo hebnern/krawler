@@ -12,6 +12,7 @@
 
 #define NEO_PX_PIN        (2)
 #define START_SEQ_BTN_PIN (3)
+#define AC_ENABLE_SW_PIN  (4)
 #define SPD_POT_PIN       (A0)
 #define SEQ_SEL_POT_PIN   (A1)
 
@@ -91,7 +92,9 @@ void readPots(void *arg)
 
 void updateNodes(void *arg)
 {
+    int acEnabled = digitalRead(AC_ENABLE_SW_PIN);
     for (int i = 0; i < NUM_HALO_NODES; ++i) {
+        nodes[i].enableAc(acEnabled);
         nodes[i].queryStatus();
         nodes[i].sendCommands();
     }

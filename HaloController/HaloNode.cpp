@@ -35,9 +35,9 @@ void HaloNode::queryStatus()
 void HaloNode::sendCommands()
 {
     byte commandPacket[COMMAND_PKT_SIZE];
-    commandPacket[0] = acEnableCommand;
+    commandPacket[0] = acEnabled;
     for (int i = 0; i < NUM_POOFERS_PER_NODE; ++i) {
-        commandPacket[i + 1] = valveEnableCommands[i];
+        commandPacket[i + 1] = valveEnabled[i];
     }
     commandPacket[COMMAND_PKT_SIZE-1] = CRC8(commandPacket, COMMAND_PKT_SIZE-1);
 
@@ -51,7 +51,12 @@ uint16_t HaloNode::getHsiTemp(int idx)
     return nodeStatus[idx];
 }
 
-void HaloNode::setValveCommand(int idx, bool valveEnabled)
+void HaloNode::enableAc(bool enabled)
 {
-    valveEnableCommands[idx] = valveEnabled;
+    acEnabled = enabled;
+}
+
+void HaloNode::enableValve(int idx, bool enabled)
+{
+    valveEnabled[idx] = enabled;
 }
