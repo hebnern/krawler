@@ -151,13 +151,14 @@ void handleSequenceComplete()
 
 void updateSequenceButtonLed(void *arg)
 {
+    int val;
     if (sequencer.isActive() && !sequencer.isPreview()) {
-        float val = (exp(sin(millis() / 2000.0 * PI)) - 0.36787944) * 108.0;
-        analogWrite(START_SEQ_LED_PIN, val);
+        val = int((exp(sin(millis() / 2000.0 * PI)) - 0.36787944) * 108.0);
     }
     else {
-        analogWrite(START_SEQ_LED_PIN, 255);
+        val = 255;
     }
+    analogWrite(START_SEQ_LED_PIN, val);
 }
 
 void setup()
