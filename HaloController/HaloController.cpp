@@ -11,8 +11,10 @@
 #include "PooferSequencer.h"
 
 #define NEO_PX_PIN        (2)
-#define START_SEQ_BTN_PIN (3)
-#define AC_ENABLE_BTN_PIN (4)
+#define START_SEQ_LED_PIN (3)
+#define START_SEQ_BTN_PIN (4)
+#define AC_ENABLE_LED_PIN (5)
+#define AC_ENABLE_BTN_PIN (6)
 #define SPD_POT_PIN       (A0)
 #define SEQ_SEL_POT_PIN   (A1)
 
@@ -34,6 +36,7 @@
 SimpleTimer readPotsTimer;
 SimpleTimer updateNodesTimer;
 SimpleTimer restartSequencePreviewTimer;
+SimpleTimer updateSequenceButtonLedTimer;
 Button startSequenceButton(START_SEQ_BTN_PIN, BUTTON_PULLUP_INTERNAL);
 Button acEnableButton(AC_ENABLE_BTN_PIN, BUTTON_PULLUP_INTERNAL);
 Adafruit_NeoPixel display = Adafruit_NeoPixel(NUM_DISPLAY_PIXELS, NEO_PX_PIN, NEO_GRB + NEO_KHZ800);
@@ -128,6 +131,7 @@ void handlePooferStateChange(int pooferIdx, Poofer::State state)
 void handleAcEnableButtonPressed(Button& button)
 {
     acEnabled = !acEnabled;
+    digitalWrite(AC_ENABLE_LED_PIN, acEnabled);
 }
 
 void handleStartSequenceButtonPressed(Button& button)
@@ -145,6 +149,17 @@ void handleSequenceComplete()
     restartSequencePreviewTimer.setTimeout(750, restartSequencePreview, NULL);
 }
 
+void updateSequenceButtonLed(void *arg)
+{
+    if (sequencer.isActive() && !sequencer.isPreview()) {
+        float val = (exp(sin(millis() / 2000.0 * PI)) - 0.36787944) * 108.0;
+        analogWrite(START_SEQ_LED_PIN, val);
+    }
+    else {
+        analogWrite(START_SEQ_LED_PIN, 255);
+    }
+}
+
 void setup()
 {
     Wire.begin();
@@ -153,10 +168,14 @@ void setup()
     display.begin();
     display.show();
 
+    pinMode(START_SEQ_LED_PIN, OUTPUT);
+    pinMode(AC_ENABLE_LED_PIN, OUTPUT);
+
     startSequenceButton.clickHandler(handleStartSequenceButtonPressed);
     acEnableButton.clickHandler(handleAcEnableButtonPressed);
     updateNodesTimer.setInterval(100, updateNodes, NULL);
     readPotsTimer.setInterval(100, readPots, NULL);
+    updateSequenceButtonLedTimer.setInterval(10, updateSequenceButtonLed, NULL);
 
     for (int i = 0; i < NUM_POOFERS; ++i) {
         poofers[i].onStateChange(handlePooferStateChange);
