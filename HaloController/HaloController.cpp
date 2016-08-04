@@ -36,8 +36,8 @@
 SimpleTimer readPotsTimer;
 SimpleTimer updateNodesTimer;
 SimpleTimer restartSequencePreviewTimer;
-SimpleTimer updateSequenceButtonLedTimer;
-Button startSequenceButton(START_SEQ_BTN_PIN, BUTTON_PULLUP_INTERNAL);
+SimpleTimer updateTriggerButtonLedTimer;
+Button triggerButton(START_SEQ_BTN_PIN, BUTTON_PULLUP_INTERNAL);
 Button acEnableButton(AC_ENABLE_BTN_PIN, BUTTON_PULLUP_INTERNAL);
 Adafruit_NeoPixel display = Adafruit_NeoPixel(NUM_DISPLAY_PIXELS, NEO_PX_PIN, NEO_GRB + NEO_KHZ800);
 bool displayUpdated;
@@ -134,7 +134,7 @@ void handleAcEnableButtonPressed(Button& button)
     digitalWrite(AC_ENABLE_LED_PIN, acEnabled);
 }
 
-void handleStartSequenceButtonPressed(Button& button)
+void handleTriggerButtonPressed(Button& button)
 {
     sequencer.startSequence(sequences[curSeqSelect]);
 }
@@ -149,11 +149,11 @@ void handleSequenceComplete()
     restartSequencePreviewTimer.setTimeout(750, restartSequencePreview, NULL);
 }
 
-void updateSequenceButtonLed(void *arg)
+void updateTriggerButtonLed(void *arg)
 {
     int val;
     if (sequencer.isActive() && !sequencer.isPreview()) {
-        val = int((exp(sin(millis() / 2000.0 * PI)) - 0.36787944) * 108.0);
+        val = int((exp(sin(millis() / 2000.0f * PI)) - 0.36787944f) * 108.0f);
     }
     else {
         val = 255;
@@ -172,11 +172,11 @@ void setup()
     pinMode(START_SEQ_LED_PIN, OUTPUT);
     pinMode(AC_ENABLE_LED_PIN, OUTPUT);
 
-    startSequenceButton.clickHandler(handleStartSequenceButtonPressed);
+    triggerButton.clickHandler(handleTriggerButtonPressed);
     acEnableButton.clickHandler(handleAcEnableButtonPressed);
     updateNodesTimer.setInterval(100, updateNodes, NULL);
     readPotsTimer.setInterval(100, readPots, NULL);
-    updateSequenceButtonLedTimer.setInterval(10, updateSequenceButtonLed, NULL);
+    updateTriggerButtonLedTimer.setInterval(10, updateTriggerButtonLed, NULL);
 
     for (int i = 0; i < NUM_POOFERS; ++i) {
         poofers[i].onStateChange(handlePooferStateChange);
@@ -187,7 +187,7 @@ void setup()
 
 void loop()
 {
-    startSequenceButton.process();
+    triggerButton.process();
     acEnableButton.process();
     readPotsTimer.run();
     updateNodesTimer.run();
