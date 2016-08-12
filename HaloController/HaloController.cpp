@@ -154,7 +154,7 @@ void updateTriggerButtonLed(void *arg)
 {
     int val;
     if (sequencer.isActive() && !sequencer.isPreview()) {
-        val = int((exp(sin(millis() / 2000.0f * PI)) - 0.36787944f) * 108.0f);
+        val = int((exp(sin(millis() / 500.0f * PI)) - 0.36787944f) * 108.0f);
     }
     else {
         val = 255;
@@ -196,6 +196,7 @@ void loop()
     acEnableButton.process();
     readPotsTimer.run();
     updateNodesTimer.run();
+    updateTriggerButtonLedTimer.run();
 
     if (sequencer.isActive()) {
         sequencer.run();
