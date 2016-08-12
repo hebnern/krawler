@@ -41,8 +41,13 @@ void Poofer::run()
         node->enableValve(nodeIdx, false);
         setState(COLD);
     }
-    else if (curState == HOT_ACTIVE) {
-        timer.run();
+    else {
+        if (curState == COLD) {
+            setState(HOT_INACTIVE);
+        }
+        else if (curState == HOT_ACTIVE) {
+            timer.run();
+        }
     }
 }
 

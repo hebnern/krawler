@@ -91,6 +91,7 @@ void readPots(void *arg)
 
     int newSeqSelect = analogRead(SEQ_SEL_POT_PIN) / (1024 / NUM_POOFER_SEQUENCES);
     if (curSeqSelect != newSeqSelect) {
+        curSeqSelect = newSeqSelect;
         sequencer.startSequencePreview(sequences[curSeqSelect]);
     }
 }
@@ -125,7 +126,7 @@ void handlePooferStateChange(int pooferIdx, Poofer::State state)
         int pixelIdx = (pooferIdx * NUM_PIXELS_PER_POOFER) + i;
         display.setPixelColor(pixelIdx, pixelColor);
     }
-    displayUpdated = false;
+    displayUpdated = true;
 }
 
 void handleAcEnableButtonPressed(Button& button)
@@ -141,7 +142,7 @@ void handleTriggerButtonPressed(Button& button)
 
 void restartSequencePreview(void *arg)
 {
-    sequencer.startSequencePreview(sequences[0]);
+    sequencer.startSequencePreview(sequences[curSeqSelect]);
 }
 
 void handleSequenceComplete()
@@ -167,6 +168,10 @@ void setup()
     Serial.begin(9600);
 
     display.begin();
+    display.setBrightness(5);
+    for (unsigned int i = 0; i < display.numPixels(); ++i) {
+        display.setPixelColor(i, COLD_COLOR);
+    }
     display.show();
 
     pinMode(START_SEQ_LED_PIN, OUTPUT);
